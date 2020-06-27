@@ -1,0 +1,3 @@
+title = "result"
+variables = x, y, p, u, v, magU
+ZONE I = 10, J = 10, F = Point
