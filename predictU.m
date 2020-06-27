@@ -1,7 +1,7 @@
 % This is a function to predict U %
 % by solving momentum equations %
 
-function [UNEW, D] = predictU(U, p, N)
+function [UNEW, D] = predictU(cellType, U, p, N)
     global L mu h ub alphaU alphaP
     
     %% Define coefficient matrices A and right-hand side vectors B
@@ -14,49 +14,77 @@ function [UNEW, D] = predictU(U, p, N)
     %% Neighbor surfaces
     S_nb = [-h, h, 0, 0; 0, 0, -h, h];  % Surface vector for w, e, s, n
     N_nb = length(S_nb(1, :));
+    
+    %% Temporary variables
+    tempGradU = cell(N * N, 1);
+    tempGradP = cell(N * N, 1);
+    tempM = zeros(N * N, 4);
+    nb_id = zeros(N * N, 4);
+    
+    for ii = 1:N*N
+        tempGradU{ii} = gradU(cellType{ii}, U, ii, N);
+        tempGradP{ii} = gradP(cellType{ii}, p, ii, N);
+        nb_id(ii, :) = [ii - 1, ii + 1, ii - N, ii + N];
+        
+        %% Boundary contributions
+        if contains(cellType{ii}, 'L')
+            nb_id(ii, 1) = 0;       
+        end
+        if contains(cellType{ii}, 'R')
+            nb_id(ii, 2) = 0;
+        end
+        if contains(cellType{ii}, 'D')
+            nb_id(ii, 3) = 0;
+        end
+        if contains(cellType{ii}, 'U')
+            nb_id(ii, 4) = 0;
+        end
+        for jj = 1:4
+            if nb_id(ii, jj) > 0
+                tempM(ii, jj) = getM(jj, S_nb, U, ii, N);
+            end
+        end
+    end
         
     for ii = 1:N*N
-        cellType = getCellType(ii, N);
+
         mf = zeros(N_nb, 1);
         aF = zeros(N_nb, 1);
         aC = zeros(1, 2);
         bC = zeros(1, 2);
-        nb_id = [ii - 1, ii + 1, ii - N, ii + N];
+
         
         %% Boundary contributions
-        if contains(cellType, 'L')
-            nb_id(1) = 0;
+        if contains(cellType{ii}, 'L')
+
             aC(2) = aC(2) + 2 * mu;
         end
-        if contains(cellType, 'R')
-            nb_id(2) = 0;
+        if contains(cellType{ii}, 'R')
+
             aC(2) = aC(2) + 2 * mu;
         end
-        if contains(cellType, 'D')
-            nb_id(3) = 0;
+        if contains(cellType{ii}, 'D')
+
             aC(1) = aC(1) + 2 * mu;
         end
-        if contains(cellType, 'U')
-            nb_id(4) = 0;
+        if contains(cellType{ii}, 'U')
+
             aC(1) = aC(1) + 2 * mu;
             bC(1) = bC(1) + 2 * mu * ub;
         end
         
-%         disp(['cellType : ', cellType]);
         
         %% Interior contributions
         for jj = 1:N_nb
-            if nb_id(jj) > 0    %% if interior faces
-                mf(jj) = getM(jj, S_nb, U, ii, N);
-                aF(jj) = -max(-mf(jj), 0) - mu;
-                aC = aC + max(mf(jj), 0) + mu;
-                bC = bC + (mu * 0.5 * (gradU(U, ii, N) + gradU(U, nb_id(jj), N)) * S_nb(:, jj))';   %% explicit diffusion term
+            if nb_id(ii, jj) > 0    %% if interior faces
+                aF(jj) = -max(-tempM(ii, jj), 0) - mu;
+                aC = aC + max(tempM(ii, jj), 0) + mu;
+                bC = bC + (mu * 0.5 * (tempGradU{ii} + tempGradU{nb_id(ii, jj)}) * S_nb(:, jj))';   %% explicit diffusion term
             else
-                mf(jj) = 0;
                 aF(jj) = 0;
             end
         end
-        bC = bC - gradP(p, ii, N)' * h ^ 2;
+        bC = bC - tempGradP{ii}' * h ^ 2;
         
 
         
@@ -66,9 +94,9 @@ function [UNEW, D] = predictU(U, p, N)
         A{2}(ii, ii) = aC(2) / alphaU;
         % neighbors
         for jj = 1:N_nb
-            if nb_id(jj) > 0
-                A{1}(ii, nb_id(jj)) = aF(jj);
-                A{2}(ii, nb_id(jj)) = aF(jj);
+            if nb_id(ii, jj) > 0
+                A{1}(ii, nb_id(ii, jj)) = aF(jj);
+                A{2}(ii, nb_id(ii, jj)) = aF(jj);
             end
         end
         % right-hand side

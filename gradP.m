@@ -1,7 +1,7 @@
 %% This is function to compute the gradient of p
-function out = gradP(p, ii, N)
+function out = gradP(cellType, p, ii, N)
     global L mu h
-    cellType = getCellType(ii, N);
+%     cellType = getCellType(ii, N);
     out = zeros(2, 1);
     
     %% dp/dx

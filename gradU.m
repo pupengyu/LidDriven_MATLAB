@@ -1,7 +1,7 @@
 %% This is function to compute the gradient of U
-function out = gradU(U, ii, N)
+function out = gradU(cellType, U, ii, N)
     global L mu h ub
-    cellType = getCellType(ii, N);
+%     cellType = getCellType(ii, N);
     gradu = zeros(2, 1);
     gradv = zeros(2, 1);
     

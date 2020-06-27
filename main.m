@@ -20,6 +20,7 @@ clc
 
 %% 初始化
 tic     % 计时起点
+profile on;
 global L mu h ub alphaU alphaP
 L = 1.0;    % Lid长度
 mu = 0.01;  % 动力粘度系数
@@ -39,13 +40,19 @@ pC = zeros(N * N, 1);   % 压力修正
 
 v_RES = zeros(100000, 1);   % 残差序列，用于输出残差图
 
+%% 设置单元类型，用以识别边界条件
+cellType = cell(N * N, 1);
+for ii = 1:N*N
+    cellType{ii} = getCellType(ii, N);
+end
+
 %% SIMPLE求解
 for ii = 1:100000
     %% 求解动量方程，返回满足动量方程的速度场，与中间变量D，后者由于Rhie-Chow插值
-    [UNew, D] = predictU(UOld, p, N);
+    [UNew, D] = predictU(cellType, UOld, p, N);
     
     %% 求解压力修正方程，并修正压强与速度场
-    [pNew, UNew] = correctP(UNew, p, D, N);
+    [pNew, UNew] = correctP(cellType, UNew, p, D, N);
 
     %% 获取残差并判断是否收敛
     RES = max(max(abs(UOld - UNew)));   % 这里用的是error而非residual，主要是嫌麻烦
@@ -65,6 +72,7 @@ for ii = 1:100000
 end
 
 toc     % 计时终点
+myProfile = profile('info');
 
 %% 后处理
 x = h * (1:N) - 0.5 * h;
